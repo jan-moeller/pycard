@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<!-- set up the svg for regular poker card dimensions -->
+<svg
+        id="card"
+        width="2.5in"
+        height="3.5in"
+        viewBox="0 0 250 350"
+        version="1.1"
+        xmlns="http://www.w3.org/2000/svg"
+        xmlns:svg="http://www.w3.org/2000/svg"
+>
+    <style>
+        <!-- Pull in font from the web for demo purposes -->
+        @font-face {
+            font-family: "Roboto";
+            src: url(https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxM.woff2) format('woff2');
+        }
+
+        <!-- CSS styles -->
+        .title { font: bold 12px sans-serif; font-family: 'Roboto'; fill: {{text_color}}; }
+        .type { font: bold 12px sans-serif; font-family: Roboto; fill: {{text_color}}; }
+        .text-box-text { font: 10px sans-serif; font-family: Roboto; color: {{text_color}}; overflow: auto; word-wrap: break-word; }
+        .detail { font: italic 6px sans-serif; fill: white; }
+
+        .image-box { stroke: black; stroke-width: 2; }
+        .text-box { opacity:0.9; fill: {{bg_color}}; stroke: black; stroke-width: 2; }
+        .title-box { opacity: 0.9; fill: {{bg_color}}; stroke: black; stroke-width: 2; }
+        .type-box { opacity:0.9; fill: {{bg_color}}; stroke: black; stroke-width: 2; }
+        p { margin-top: 0px; }
+    </style>
+
+    <!-- general card shape -->
+    <rect
+            fill="black"
+            id="black"
+            width="250"
+            height="350"
+            x="0"
+            y="0"
+            rx="12.5"
+            ry="12.5"
+    />
+
+    <!-- image part of the card -->
+    <!-- the image is embedded into the generated svg file -->
+    <image
+            id="image"
+            class="image-box"
+            width="230"
+            height="230"
+            x="10"
+            y="10"
+            href="data:{{(assets_path/image_path) | mimetype}};base64,{{(assets_path/image_path) | read_bytes | b64encode}}"
+            preserveAspectRatio="xMidYMid slice"
+    />
+
+    <!-- title box -->
+    <rect
+            id="title_box"
+            class="title-box"
+            width="222"
+            height="18"
+            x="14"
+            y="14"
+            ry="10"
+            rx="5"
+    />
+    <text
+            id="title_text"
+            class="title"
+            x="18"
+            y="27"
+            text-anchor="start"
+    >
+            {{title}}
+    </text>
+
+    <!-- type box beneath the image -->
+    <rect
+            id="type_box"
+            class="type-box"
+            width="240"
+            height="22"
+            x="5"
+            y="218"
+            rx="7"
+            ry="10"
+    />
+    <text
+            id="type_text"
+            class="type"
+            x="19"
+            y="233"
+            text-anchor="start"
+    >
+            <tspan class="type">{{type}}</tspan>
+    </text>
+
+    <!-- text box at the bottom -->
+    <!-- to get automatic text wrapping, this is implemented as a foreign object. This
+         implies that plain SVG editors likely won't be able to handle the text. Browser will,
+         however. -->
+    <rect
+            id="text_box"
+            class="text-box"
+            width="230"
+            height="80"
+            x="10"
+            y="240"
+    />
+    <foreignObject
+            width="222"
+            height="70"
+            x="14"
+            y="242"
+    >
+        <div
+                xmlns="http://www.w3.org/1999/xhtml"
+                class="text-box-text"
+        >
+                {{text}}
+        </div>
+    </foreignObject>
+
+    <!-- fine print at the bottom of the card -->
+    <text
+            id="left_detail_1"
+            class="detail"
+            x="10"
+            y="332"
+            text-anchor="start"
+    >
+        {{left_detail_1}}
+    </text>
+    <text
+            id="left_detail_2"
+            class="detail"
+            x="10"
+            y="338"
+            text-anchor="start"
+    >
+        {{left_detail_2}}
+    </text>
+    <text
+            id="right_detail_1"
+            class="detail"
+            x="240"
+            y="332"
+            text-anchor="end"
+    >
+        {{right_detail_1}}
+    </text>
+    <text
+            id="right_detail_2"
+            class="detail"
+            x="240"
+            y="338"
+            text-anchor="end"
+    >
+        {{right_detail_2}}
+    </text>
+</svg>

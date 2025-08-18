@@ -1,0 +1,15 @@
+- !category # This category is for demonstration purposes
+  variables:
+    template: template.svg.jinja
+    text_color: white
+    bg_color: "#430d00ff"
+    left_detail_1: "#{{'%03d' | format(ordinal)}}"
+    left_detail_2: "Artwork AI generated"
+    right_detail_1: "A PyCard example"
+  cards:
+    - title: PyCard
+      type: Example Card
+      text: |
+        <strong>{{title}}</strong> is a playing card template engine. It allows you to create a template <i>SVG</i>
+        file, and then fills in the details of all cards and saves them as SVG and PNG.
+      image_path: pycard.svg
