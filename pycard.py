@@ -2,6 +2,7 @@ import base64
 import mimetypes
 import sys
 from abc import abstractmethod, ABCMeta
+from collections.abc import Callable
 from enum import Enum
 from math import log10
 from pathlib import Path
@@ -196,7 +197,9 @@ def gen_cards(
         variables |= {"ordinal": i}
 
         svg_text = recursive_render(
-            env, env.get_template(str(variables["template"])), variables
+            env,
+            env.get_template(str(variables["template"])),
+            variables,
         )
         card_id = "{{:0{}d}}".format(num_digits(len(cards))).format(i)
         print(f"Generating: {card_id}")
@@ -230,8 +233,15 @@ def load_cards(cards_file: Path) -> list[Variables]:
                 if not elem.keys() <= {"variables", "cards"}:  # pyright: ignore[reportUnknownMemberType]
                     raise ValueError(f"Invalid cards file: {cards_file}")
 
-                vars |= elem.get("variables", {})  # pyright: ignore[reportUnknownMemberType]
-                cards += flatten(elem.get("cards", []), vars)  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+                new_vars: Any = elem.get("variables", {})  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+                if not isinstance(new_vars, CommentedMap):
+                    raise ValueError(f"Invalid cards file: {cards_file}")
+                vars |= new_vars
+
+                new_cards: Any = elem.get("cards", [])  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+                if not isinstance(new_cards, CommentedSeq):
+                    raise ValueError(f"Invalid cards file: {cards_file}")
+                cards += flatten(new_cards, vars)
 
             else:
                 cards.append(vars | cast(Variables, elem))
@@ -241,6 +251,18 @@ def load_cards(cards_file: Path) -> list[Variables]:
     cards = flatten(definitions, {})
 
     return cards
+
+
+def extend_environment_globals(env: Environment, **kwargs: Any):  # pyright: ignore[reportAny]
+    """Extends environment global variables."""
+    for key, value in kwargs.items():  # pyright: ignore[reportAny]
+        env.globals[key] = value
+
+
+def extend_environment_filters(env: Environment, **kwargs: Callable[[Any], Any]):
+    """Extends environment filters."""
+    for key, value in kwargs.items():
+        env.filters[key] = value
 
 
 @command()
@@ -289,16 +311,21 @@ def main(
     out_path.mkdir(parents=True, exist_ok=True)
 
     env = Environment(loader=FileSystemLoader(templates_path), autoescape=False)
-    env.globals["out_path"] = out_path
-    env.globals["assets_path"] = assets_path
-
-    env.filters["b64decode"] = lambda s: base64.b64decode(s)
-    env.filters["b64encode"] = lambda b: base64.b64encode(b).decode()
-    env.filters["read_text"] = lambda p: Path(p).read_text()
-    env.filters["read_bytes"] = lambda p: Path(p).read_bytes()
-    env.filters["bytes2hex"] = lambda b: b.hex()
-    env.filters["hex2bytes"] = bytes.fromhex
-    env.filters["mimetype"] = lambda p: mimetypes.guess_file_type(p)[0]
+    extend_environment_globals(
+        env,
+        out_path=out_path,
+        assets_path=assets_path,
+    )
+    extend_environment_filters(
+        env,
+        b64decode=lambda s: base64.b64decode(s),  # pyright: ignore[reportAny]
+        b64encode=lambda b: base64.b64encode(b).decode(),  # pyright: ignore[reportAny]
+        read_text=lambda p: Path(p).read_text(),  # pyright: ignore[reportAny]
+        read_bytes=lambda p: Path(p).read_bytes(),  # pyright: ignore[reportAny]
+        bytes2hex=lambda b: b.hex(),  # pyright: ignore[reportAny]
+        hex2bytes=bytes.fromhex,
+        mimetype=lambda p: mimetypes.guess_file_type(p)[0],  # pyright: ignore[reportAny]
+    )
 
     with create_renderer(png) as renderer:
         gen_cards(env=env, cards=cards, renderer=renderer)
@@ -309,4 +336,4 @@ def main(
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main())  # pyright: ignore[reportAny]
