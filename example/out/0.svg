@@ -11,16 +11,10 @@
         xmlns:svg="http://www.w3.org/2000/svg"
 >
     <style>
-        <!-- Pull in font from the web for demo purposes -->
-        @font-face {
-            font-family: "Roboto";
-            src: url(https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxM.woff2) format('woff2');
-        }
-
         <!-- CSS styles -->
-        .title { font: bold 12px sans-serif; font-family: 'Roboto'; fill: white; }
-        .type { font: bold 12px sans-serif; font-family: Roboto; fill: white; }
-        .text-box-text { font: 10px sans-serif; font-family: Roboto; color: white; overflow: auto; word-wrap: break-word; }
+        .title { font: bold 12px sans-serif; fill: white; }
+        .type { font: bold 12px sans-serif; fill: white; }
+        .text-box-text { font: 10px sans-serif; color: white; overflow: auto; word-wrap: break-word; }
         .detail { font: italic 6px sans-serif; fill: white; }
 
         .image-box { stroke: black; stroke-width: 2; }
@@ -99,7 +93,7 @@
 
     <!-- text box at the bottom -->
     <!-- to get automatic text wrapping, this is implemented as a foreign object. This
-         implies that plain SVG editors likely won't be able to handle the text. Browser will,
+         implies that plain SVG editors likely won't be able to handle the text. Browsers will,
          however. -->
     <rect
             id="text_box"

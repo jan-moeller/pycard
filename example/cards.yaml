@@ -1,15 +1,24 @@
-- !category # This category is for demonstration purposes
-  variables:
+# This is a category, which allows you to set some defaults for all cards within the category
+- !category
+  variables: # These are the defaults
     template: template.svg.jinja
     text_color: white
     bg_color: "#430d00ff"
     left_detail_1: "#{{'%03d' | format(ordinal)}}"
     left_detail_2: "Artwork AI generated"
     right_detail_1: "A PyCard example"
-  cards:
+  cards: # Now follows the list of cards in the category
     - title: PyCard
       type: Example Card
-      text: |
+      text: | # Variables can refer to other variables.
         <strong>{{title}}</strong> is a playing card template engine. It allows you to create a template <i>SVG</i>
         file, and then fills in the details of all cards and saves them as SVG and PNG.
       image_path: pycard.svg
+    - title: Live Long and Prosper
+      type: Greeting
+      text: This serves as an example of another card generated from the same template.
+      image_path: spocksign.svg
+      # The following variables overwrite the category default
+      left_detail_2: Artwork Public Domain
+      bg_color: white
+      text_color: black
