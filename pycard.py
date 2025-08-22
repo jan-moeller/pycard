@@ -295,7 +295,7 @@ def extend_environment_filters(env: Environment, **kwargs: Callable[[Any], Any])
     "--png",
     type=Choice(RendererType, case_sensitive=False),
     default=RendererType.NONE,
-    help="How to render PNG files.",
+    help="Render as PNG using the provided method.",
 )
 def main(
     cards_file: Path,
