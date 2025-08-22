@@ -1,6 +1,8 @@
 # pycard
 
-A python playing cards generator
+A python playing cards template engine.
+
+[![Testing](https://github.com/jan-moeller/pycard/actions/workflows/.testing.yml/badge.svg)](https://github.com/jan-moeller/pycard/actions/workflows/.testing.yml)
 
 ![](https://github.com/jan-moeller/pycard/raw/main/example/out/0.svg)
 ![](https://github.com/jan-moeller/pycard/raw/main/example/out/1.svg)
