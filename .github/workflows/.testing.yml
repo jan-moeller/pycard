@@ -1,0 +1,20 @@
+name: Testing
+on: [ push ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Setup prerequisites
+        run: uv sync && uv run playwright install
+      - name: lint
+        run: uv run ruff check
+      - name: typecheck
+        run: uv run basedpyright
+      - name: check formatting
+        run: uv run ruff format --diff
+      - name: run example
+        run: uv run --script pycard.py -t example/ -o example/out/ -a example/ --png FIREFOX example/cards.yaml
