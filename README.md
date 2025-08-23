@@ -55,6 +55,7 @@ There are a number of variables with pre-assigned meaning:
 - `assets_path`: Automatically set to the path to the assets directory, as provided via the CLI.
 - `ordinal`: Automatically set to the zero-based number of the processed card, as counted from
   top to bottom in the card definitions file.
+- `num_cards`: Automatically set to the total number of cards.
 
 ### CLI
 

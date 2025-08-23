@@ -334,6 +334,7 @@ def main(
         env,
         out_path=out_path,
         assets_path=assets_path,
+        num_cards=len(cards),
     )
     extend_environment_filters(
         env,
