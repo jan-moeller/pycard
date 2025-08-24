@@ -252,12 +252,12 @@ def load_cards(cards_file: Path) -> list[Variables]:
                 if not elem.keys() <= {"variables", "cards"}:  # pyright: ignore[reportUnknownMemberType]
                     raise ValueError(f"Invalid cards file: {cards_file}")
 
-                new_vars: Any = elem.get("variables", {})  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+                new_vars: Any = elem.get("variables", CommentedMap())  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
                 if not isinstance(new_vars, CommentedMap):
                     raise ValueError(f"Invalid cards file: {cards_file}")
                 vars |= new_vars
 
-                new_cards: Any = elem.get("cards", [])  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+                new_cards: Any = elem.get("cards", CommentedSeq())  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
                 if not isinstance(new_cards, CommentedSeq):
                     raise ValueError(f"Invalid cards file: {cards_file}")
                 cards += flatten(new_cards, vars)
