@@ -193,46 +193,27 @@ def gen_cards(
 ):
     """Generates all cards (SVG and PNG)."""
 
-    out_path = cast(Path, env.globals["out_path"])
-    cache_path = out_path / "cache.yaml"
-    cache: Any = _yaml.load(cache_path) if cache_path.exists() else None  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
-    if not isinstance(cache, list):
-        cache = cast(list[Variables], [])
-
     for i, variables in enumerate(cards):
+        variables |= {"ordinal": i}
+
+        svg_text = recursive_render(
+            env,
+            env.get_template(str(variables["template"])),
+            variables,
+        )
         card_id = "{{:0{}d}}".format(num_digits(len(cards))).format(i)
         print(f"Generating: {card_id}")
 
-        variables |= {"ordinal": i}
-        out_file_svg = out_path / (card_id + ".svg")
-        out_file_png = out_path / (card_id + ".png")
+        out_path = str(env.globals["out_path"])
 
-        definitions_changed = cast(
-            bool,
-            cache[i] != cards[i] if i < len(cache) else True,  # pyright: ignore[reportUnknownArgumentType]
-        )
+        out_file_svg = Path(out_path) / (card_id + ".svg")
+        _ = out_file_svg.write_text(svg_text)
 
-        # Skip generation if nothing changed
-        svg_text = None
-        if definitions_changed or not out_file_svg.exists():
-            svg_text = recursive_render(
-                env,
-                env.get_template(str(variables["template"])),
-                variables,
-            )
+        png_bytes = renderer.render(svg_text)
 
-            _ = out_file_svg.write_text(svg_text)
-
-        if definitions_changed or (
-            not out_file_png.exists() and not isinstance(renderer, NoneCardRenderer)
-        ):
-            if not svg_text:
-                svg_text = out_file_svg.read_text()
-            png_bytes = renderer.render(svg_text)
+        if len(png_bytes) > 0:
+            out_file_png = Path(out_path) / (card_id + ".png")
             _ = out_file_png.write_bytes(png_bytes)
-
-    with open(cache_path, "w") as cache_file:
-        _yaml.dump(cards, cache_file)  # pyright: ignore[reportUnknownMemberType]
 
 
 def load_cards(cards_file: Path) -> list[Variables]:
