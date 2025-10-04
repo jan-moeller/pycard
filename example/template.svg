@@ -45,7 +45,7 @@
             height="230"
             x="10"
             y="10"
-            href="data:{{(assets_path/image_path) | mimetype}};base64,{{(assets_path/image_path) | read_bytes | b64encode}}"
+            href="data:{{mimetype(assets_path/image_path)}};base64,{{b64encode(read_bytes(assets_path/image_path))}}"
             preserveAspectRatio="xMidYMid slice"
     />
 
@@ -88,7 +88,7 @@
             y="233"
             text-anchor="start"
     >
-            <tspan class="type">{{type}}</tspan>
+            <tspan class="type">{{card_type}}</tspan>
     </text>
 
     <!-- text box at the bottom -->

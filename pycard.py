@@ -2,7 +2,6 @@ import base64
 import mimetypes
 import sys
 from abc import abstractmethod, ABCMeta
-from collections.abc import Callable
 from enum import Enum
 from math import log10
 from pathlib import Path
@@ -10,13 +9,36 @@ from types import TracebackType
 from typing import Any, cast, final, override, Self
 
 from click import command, argument, option, Choice
-from jinja2 import Template, Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright, FloatRect, BrowserType
-from ruamel.yaml import YAML, CommentedSeq, CommentedMap
+from pyforma import Template, TemplateContext, DefaultTemplateContext
+from ruamel.yaml import (
+    YAML,
+    CommentedSeq,
+    CommentedMap,
+    BaseConstructor,
+    ScalarNode,
+)
+from ruamel.yaml.scalarstring import ScalarString
+
+PATH_TAG = "!path"
+TEMPLATE_TAG = "!template"
+
+
+def construct_path(constructor: BaseConstructor, node: ScalarNode):
+    path_str = cast(ScalarString, constructor.construct_scalar(node))  # pyright: ignore[reportUnknownMemberType]
+    return Path(path_str)
+
+
+def construct_template(constructor: BaseConstructor, node: ScalarNode):
+    templates_str = cast(ScalarString, constructor.construct_scalar(node))  # pyright: ignore[reportUnknownMemberType]
+    return Template(templates_str)
+
 
 _yaml = YAML()
+_yaml.constructor.add_constructor(PATH_TAG, construct_path)  # pyright: ignore[reportUnknownMemberType]
+_yaml.constructor.add_constructor(TEMPLATE_TAG, construct_template)  # pyright: ignore[reportUnknownMemberType]
 
-type Variables = dict[str, str | int | float | bool]
+type Variables = dict[str, Any]
 
 
 class RendererType(Enum):
@@ -26,30 +48,6 @@ class RendererType(Enum):
     FIREFOX = 1
     CHROMIUM = 2
     WEBKIT = 3
-
-
-def recursive_render(
-    env: Environment,
-    template: Template,
-    variables: dict[str, Any],
-    max_depth: int = 10,
-) -> str:
-    """Recursively renders a template and returns the final result."""
-
-    if max_depth <= 0:
-        raise ValueError("max_depth must be positive")
-
-    prev_result = None
-    for _ in range(max_depth):
-        result = template.render(**variables)
-        if result == prev_result:
-            break
-        prev_result = result
-        template = env.from_string(result)
-    else:
-        raise ValueError("Reached maximum recursive template rendering depth - cycle?")
-
-    return result
 
 
 class CardRenderer(metaclass=ABCMeta):  # pyright: ignore[report*]
@@ -187,7 +185,8 @@ def num_digits(i: int) -> int:
 
 def gen_cards(
     *,
-    env: Environment,
+    env: TemplateContext,
+    out_path: Path,
     cards: list[Variables],
     renderer: CardRenderer,
 ):
@@ -196,15 +195,12 @@ def gen_cards(
     for i, variables in enumerate(cards):
         variables |= {"ordinal": i}
 
-        svg_text = recursive_render(
-            env,
-            env.get_template(str(variables["template"])),
-            variables,
-        )
         card_id = "{{:0{}d}}".format(num_digits(len(cards))).format(i)
         print(f"Generating: {card_id}")
 
-        out_path = str(env.globals["out_path"])
+        # Render template
+        template = str(variables["template"])
+        svg_text = env.render(env.load_template(Path(template)), variables=variables)
 
         out_file_svg = Path(out_path) / (card_id + ".svg")
         _ = out_file_svg.write_text(svg_text)
@@ -253,16 +249,112 @@ def load_cards(cards_file: Path) -> list[Variables]:
     return cards
 
 
-def extend_environment_globals(env: Environment, **kwargs: Any):  # pyright: ignore[reportAny]
-    """Extends environment global variables."""
-    for key, value in kwargs.items():  # pyright: ignore[reportAny]
-        env.globals[key] = value
+def prepare_cards(env: TemplateContext, cards: list[Variables]) -> list[Variables]:
+    resolved_cards: list[Variables] = []
+    for card in cards:
+        template = env.load_template(Path(card["template"]))
+
+        def collect_ids(value: Any) -> set[str]:
+            match value:
+                case Template():
+                    return env.unresolved_identifiers(value)
+                case dict() as d:  # pyright: ignore[reportUnknownVariableType]
+                    r = set[str]()
+                    for v in cast(dict[str, Any], d).values():
+                        r = r | collect_ids(v)
+                    return r
+                case list() as l:  # pyright: ignore[reportUnknownVariableType]
+                    r = set[str]()
+                    for v in cast(list[Any], l):
+                        r = r | collect_ids(v)
+                    return r
+                case _:
+                    return set[str]()
+
+        # collect all required IDs
+        _required_variables = env.unresolved_identifiers(template)
+        required_variables = set[str]()
+        for variable_name in _required_variables:
+            if variable_name not in card:
+                raise ValueError(f"Required variable {variable_name} is not defined")
+
+            required_variables |= collect_ids(card[variable_name])
+
+        required_variables |= _required_variables
+
+        resolved: dict[str, Any] = {}
+        in_progress: set[str] = set()
+
+        def _visit(identifier: str, value: Any) -> Any:
+            match value:
+                case Template():
+                    unresolved = env.unresolved_identifiers(value) - resolved.keys()
+                    additional = {_v: resolve(_v) for _v in unresolved}
+                    return env.render(value, variables=resolved | additional)
+
+                case dict() as d:  # pyright: ignore[reportUnknownVariableType]
+                    return {
+                        k: _visit(identifier, v)
+                        for k, v in cast(dict[str, Any], d).items()
+                    }
+
+                case list() as l:  # pyright: ignore[reportUnknownVariableType]
+                    return [_visit(identifier, v) for v in cast(list[Any], l)]
+
+                case _:
+                    return value
+
+        def resolve(identifier: str) -> Any:
+            if identifier in resolved:
+                return resolved[identifier]
+            if identifier in in_progress:
+                raise ValueError(f"Variable {identifier} depends on itself")
+
+            in_progress.add(identifier)
+
+            value = card[identifier]
+
+            resolved[identifier] = _visit(identifier, value)
+            in_progress.remove(identifier)
+            return resolved[identifier]
+
+        for identifier in required_variables:
+            _ = resolve(identifier)
+
+        resolved_cards.append(resolved | {"template": Path(card["template"])})
+
+    return resolved_cards
 
 
-def extend_environment_filters(env: Environment, **kwargs: Callable[[Any], Any]):
-    """Extends environment filters."""
-    for key, value in kwargs.items():
-        env.filters[key] = value
+def b64decode(s: str) -> bytes:
+    return base64.b64decode(s)
+
+
+def b64encode(b: bytes) -> str:
+    return base64.b64encode(b).decode()
+
+
+def read_text(p: Path | str) -> str:
+    return Path(p).read_text()
+
+
+def read_bytes(p: Path | str) -> bytes:
+    return Path(p).read_bytes()
+
+
+def bytes2hex(b: bytes) -> str:
+    return b.hex()
+
+
+def hex2bytes(s: str) -> bytes:
+    return bytes.fromhex(s)
+
+
+def mimetype(p: Path | str) -> str:
+    m = mimetypes.guess_file_type(p)[0]
+    if m is None:
+        raise ValueError(f"Unknown mimetype: {p}")
+    return m
 
 
 @command()
@@ -306,30 +398,28 @@ def main(
 ) -> int:
     """Main application entry point"""
 
+    env = DefaultTemplateContext(base_path=templates_path)
     cards = load_cards(cards_file)
-
-    out_path.mkdir(parents=True, exist_ok=True)
-
-    env = Environment(loader=FileSystemLoader(templates_path), autoescape=False)
-    extend_environment_globals(
-        env,
+    globals = dict(
         out_path=out_path,
         assets_path=assets_path,
         num_cards=len(cards),
+        # extra functions
+        b64decode=b64decode,
+        b64encode=b64encode,
+        read_text=read_text,
+        read_bytes=read_bytes,
+        bytes2hex=bytes2hex,
+        hex2bytes=hex2bytes,
+        mimetype=mimetype,
     )
-    extend_environment_filters(
-        env,
-        b64decode=lambda s: base64.b64decode(s),  # pyright: ignore[reportAny]
-        b64encode=lambda b: base64.b64encode(b).decode(),  # pyright: ignore[reportAny]
-        read_text=lambda p: Path(p).read_text(),  # pyright: ignore[reportAny]
-        read_bytes=lambda p: Path(p).read_bytes(),  # pyright: ignore[reportAny]
-        bytes2hex=lambda b: b.hex(),  # pyright: ignore[reportAny]
-        hex2bytes=bytes.fromhex,
-        mimetype=lambda p: mimetypes.guess_file_type(p)[0],  # pyright: ignore[reportAny]
-    )
+    cards = [globals | {"ordinal": i} | v for i, v in enumerate(cards)]
+    cards = prepare_cards(env, cards)
+
+    out_path.mkdir(parents=True, exist_ok=True)
 
     with create_renderer(png) as renderer:
-        gen_cards(env=env, cards=cards, renderer=renderer)
+        gen_cards(env=env, out_path=out_path, cards=cards, renderer=renderer)
 
     print("Done")
 
@@ -337,4 +427,4 @@ def main(
 
 
 if __name__ == "__main__":
-    sys.exit(main())  # pyright: ignore[reportAny]
+    sys.exit(main())

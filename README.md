@@ -14,10 +14,10 @@ directory to see both files used to generate the above cards.
 
 ### SVG Templates
 
-The SVG template simply uses SVG syntax with [Jinja](https://jinja.palletsprojects.com/en/stable/templates/)
+The SVG template simply uses SVG syntax with [PyForma](https://pypi.org/project/pyforma/)
 template syntax. It defines the general look of the cards, where texts are, and so on.
 
-In addition to the usual Jinja filters, the following filters are available:
+In addition to the PyForma default functions, the following functions are available:
 
 - `read_text`: Accepts a file path and reads the content of the file into a string.
 - `read_bytes`: Accepts a file path and reads the content of the file into a bytestring.
@@ -44,7 +44,7 @@ the `cards` section of a category can contain further categories.
 
 #### Variables
 
-Variables can refer to other variables using the usual Jinja syntax. This is useful if, e.g.
+Variables defined with the `!template` tag can refer to other variables. This is useful if, e.g.
 you want to refer to the card title in its text box.
 
 There are a number of variables with pre-assigned meaning:
