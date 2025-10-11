@@ -54,7 +54,7 @@ class CardRenderer(metaclass=ABCMeta):  # pyright: ignore[report*]
     """Provides functionality to render a card as PNG."""
 
     @abstractmethod
-    def render(self, svg: str) -> bytes:
+    def render(self, svg: Path) -> bytes:
         """Renders the card as a PNG file and returns the result."""
         raise NotImplementedError("Abstract method")
 
@@ -88,7 +88,7 @@ class NoneCardRenderer(CardRenderer):
         return False
 
     @override
-    def render(self, svg: str) -> bytes:
+    def render(self, svg: Path) -> bytes:
         return b""
 
 
@@ -141,8 +141,8 @@ class PlaywrightCardRenderer(CardRenderer):
         return False
 
     @override
-    def render(self, svg: str) -> bytes:
-        self._page.set_content(svg)
+    def render(self, svg: Path) -> bytes:
+        _ = self._page.goto(f"file://{svg}")
         self._page.evaluate("document.fonts.ready")
         # Measure SVG's bounding box
         box = cast(
@@ -205,7 +205,7 @@ def gen_cards(
         out_file_svg = Path(out_path) / (card_id + ".svg")
         _ = out_file_svg.write_text(svg_text)
 
-        png_bytes = renderer.render(svg_text)
+        png_bytes = renderer.render(out_file_svg)
 
         if len(png_bytes) > 0:
             out_file_png = Path(out_path) / (card_id + ".png")
