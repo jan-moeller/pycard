@@ -1,9 +1,10 @@
 import base64
 import mimetypes
 import sys
+import time
 from abc import abstractmethod, ABCMeta
 from enum import Enum
-from math import log10
+from math import log10, floor
 from pathlib import Path
 from types import TracebackType
 from typing import Any, cast, final, override, Self
@@ -357,6 +358,23 @@ def mimetype(p: Path | str) -> str:
     return m
 
 
+def format_duration(seconds: float) -> str:
+    if seconds < 1.0:
+        milliseconds = round(seconds * 1000)
+        return f"{milliseconds} ms"
+
+    total_seconds = floor(seconds)
+
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    secs = total_seconds % 60
+
+    if total_seconds >= 3600:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    else:
+        return f"{minutes:02d}:{secs:02d}"
+
+
 @command()
 @argument(
     "cards-file",
@@ -398,6 +416,8 @@ def main(
 ) -> int:
     """Main application entry point"""
 
+    start = time.perf_counter()
+
     env = DefaultTemplateContext(base_path=templates_path)
     cards = load_cards(cards_file)
     globals = dict(
@@ -420,8 +440,9 @@ def main(
 
     with create_renderer(png) as renderer:
         gen_cards(env=env, out_path=out_path, cards=cards, renderer=renderer)
+    end = time.perf_counter()
 
-    print("Done")
+    print(f"Done in {format_duration(end - start)}")
 
     return 0
 
