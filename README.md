@@ -62,13 +62,13 @@ There are a number of variables with pre-assigned meaning:
 ```
 Usage: pycard.py [OPTIONS] CARDS_FILE
 
-  Main application entry point
-
 Options:
   -o, --out-path PATH             Path to the output folder.
   -t, --templates-path PATH       Path to the template folder.
   -a, --assets-path PATH          Path to the assets folder.
   --png [none|firefox|chromium|webkit]
                                   Render as PNG using the provided method.
+  --gallery                       Create a standalone HTML gallery that
+                                  displays all generated cards.
   --help                          Show this message and exit.
 ```

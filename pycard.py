@@ -190,8 +190,10 @@ def gen_cards(
     out_path: Path,
     cards: list[Variables],
     renderer: CardRenderer,
-):
+) -> list[Path]:
     """Generates all cards (SVG and PNG)."""
+
+    out_svg_files: list[Path] = []
 
     for i, variables in enumerate(cards):
         variables |= {"ordinal": i}
@@ -204,6 +206,7 @@ def gen_cards(
         svg_text = env.render(env.load_template(Path(template)), variables=variables)
 
         out_file_svg = Path(out_path) / (card_id + ".svg")
+        out_svg_files.append(out_file_svg)
         _ = out_file_svg.write_text(svg_text)
 
         png_bytes = renderer.render(out_file_svg)
@@ -211,6 +214,8 @@ def gen_cards(
         if len(png_bytes) > 0:
             out_file_png = Path(out_path) / (card_id + ".png")
             _ = out_file_png.write_bytes(png_bytes)
+
+    return out_svg_files
 
 
 def load_cards(cards_file: Path) -> list[Variables]:
@@ -407,15 +412,19 @@ def format_duration(seconds: float) -> str:
     default=RendererType.NONE,
     help="Render as PNG using the provided method.",
 )
+@option(
+    "--gallery",
+    is_flag=True,
+    help="Create a standalone HTML gallery that displays all generated cards.",
+)
 def main(
     cards_file: Path,
     out_path: Path,
     templates_path: Path,
     assets_path: Path,
     png: RendererType,
+    gallery: bool,
 ) -> int:
-    """Main application entry point"""
-
     start = time.perf_counter()
 
     env = DefaultTemplateContext(base_path=templates_path)
@@ -439,7 +448,18 @@ def main(
     out_path.mkdir(parents=True, exist_ok=True)
 
     with create_renderer(png) as renderer:
-        gen_cards(env=env, out_path=out_path, cards=cards, renderer=renderer)
+        out_svg_files = gen_cards(
+            env=env, out_path=out_path, cards=cards, renderer=renderer
+        )
+
+        if gallery:
+            script_dir = Path(__file__).parent.resolve()
+            gallery_template = env.load_template(script_dir / "gallery_template.html")
+            gallery_html = env.render(
+                gallery_template, variables=dict(card_files=out_svg_files)
+            )
+            _ = (out_path / "gallery.html").write_text(gallery_html)
+
     end = time.perf_counter()
 
     print(f"Done in {format_duration(end - start)}")
