@@ -143,7 +143,7 @@ class PlaywrightCardRenderer(CardRenderer):
 
     @override
     def render(self, svg: Path) -> bytes:
-        _ = self._page.goto(f"file://{svg}")
+        _ = self._page.goto(f"file://{svg.resolve()}")
         self._page.evaluate("document.fonts.ready")
         # Measure SVG's bounding box
         box = cast(
